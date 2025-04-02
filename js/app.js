@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 语音服务实例
     const voiceService = new VoiceService();
     
+    // 麦克风权限状态
+    let micPermissionGranted = false;
+    
     // AI角色设定
     const aiPersona = {
         name: "Smitty",
@@ -62,7 +65,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isIOS) {
                 tryPlaySilentAudio();
             }
-            toggleListening();
+            
+            // 如果是移动设备，先检查/请求麦克风权限
+            if (isMobile && !micPermissionGranted) {
+                checkMicrophonePermission().then(granted => {
+                    if (granted) {
+                        toggleListening();
+                    } else {
+                        alert('请允许访问麦克风以使用语音功能');
+                        updateStatus('请允许麦克风权限后重试');
+                    }
+                });
+            } else {
+                toggleListening();
+            }
         });
         
         // 添加长按事件监听
@@ -246,6 +262,23 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(forceResetTimer);
         }
         
+        // 在移动设备上，先检查麦克风权限
+        if (isMobile && !micPermissionGranted) {
+            checkMicrophonePermission().then(granted => {
+                if (granted) {
+                    continueStartListening();
+                } else {
+                    updateStatus('需要麦克风权限');
+                    showToast('请允许访问麦克风以使用语音功能');
+                }
+            });
+        } else {
+            continueStartListening();
+        }
+    }
+    
+    // 继续启动语音识别流程
+    function continueStartListening() {
         isListening = true;
         currentTranscript = '';
         lastTranscriptLength = 0;
@@ -258,6 +291,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStatus('正在聆听...');
         
         // 设置强制重置定时器 - 防止永久卡住
+        // 移动设备使用较短的超时时间
+        const timeoutDuration = isMobile ? 8000 : maxListeningTime;
+        
         forceResetTimer = setTimeout(() => {
             if (isListening && currentTranscript) {
                 console.log('检测到长时间收听，强制发送内容');
@@ -267,12 +303,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopListening();
                 setTimeout(startListening, 500);
             }
-        }, maxListeningTime);
+        }, timeoutDuration);
         
         // 启动语音识别
         voiceService.startListening(
             // 实时更新识别结果
             (transcript, isInterim) => {
+                // 如果获取到语音结果，表示麦克风权限已获取
+                if (!micPermissionGranted) {
+                    micPermissionGranted = true;
+                    console.log('麦克风权限已授予');
+                }
+                
                 const prevTranscript = currentTranscript; // 保存之前的文本
                 currentTranscript = transcript;
                 
@@ -861,6 +903,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return text.replace(/[\u{1F600}-\u{1F64F}|\u{1F300}-\u{1F5FF}|\u{1F680}-\u{1F6FF}|\u{1F700}-\u{1F77F}|\u{1F780}-\u{1F7FF}|\u{1F800}-\u{1F8FF}|\u{1F900}-\u{1F9FF}|\u{1FA00}-\u{1FA6F}|\u{1FA70}-\u{1FAFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]/gu, '');
     }
     
+    // 检查麦克风权限
+    async function checkMicrophonePermission() {
+        try {
+            // 请求媒体设备
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // 如果成功，释放流并标记权限已授予
+            stream.getTracks().forEach(track => track.stop());
+            micPermissionGranted = true;
+            return true;
+        } catch (err) {
+            console.error('麦克风权限错误:', err);
+            return false;
+        }
+    }
+    
     // iOS音频解锁函数
     function unlockIOSAudio() {
         // 为整个文档添加触摸事件监听器
@@ -869,6 +927,14 @@ document.addEventListener('DOMContentLoaded', () => {
         function handleTouch() {
             // 尝试播放静音音频
             tryPlaySilentAudio();
+            
+            // 检查麦克风权限
+            checkMicrophonePermission().then(granted => {
+                if (granted) {
+                    micPermissionGranted = true;
+                    console.log('触摸事件已解锁音频并获取麦克风权限');
+                }
+            });
             
             // 只需要触发一次
             document.removeEventListener('touchstart', handleTouch);
