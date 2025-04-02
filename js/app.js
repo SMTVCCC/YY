@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
     const closeSidebarBtn = document.getElementById('closeSidebarBtn');
     const chatHistory = document.getElementById('chatHistory');
+    const audioUnlock = document.getElementById('audio-unlock');
+    
+    // 检测是否为移动设备
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     
     // 语音服务实例
     const voiceService = new VoiceService();
@@ -43,11 +48,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化应用
     function initializeApp() {
+        // 解锁iOS音频
+        if (isIOS) {
+            unlockIOSAudio();
+        }
+        
         // 设置星火API回调
         setupSparkApi();
         
         // 添加事件监听
-        micBtn.addEventListener('click', toggleListening);
+        micBtn.addEventListener('click', (e) => {
+            // 每次点击都尝试解锁iOS音频
+            if (isIOS) {
+                tryPlaySilentAudio();
+            }
+            toggleListening();
+        });
         
         // 添加长按事件监听
         let pressTimer;
@@ -445,6 +461,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 从文本中移除emoji，避免朗读emoji
         const textWithoutEmoji = removeEmoji(text);
         
+        // 在iOS设备上先尝试播放空白音频来解锁Web Audio
+        if (isIOS) {
+            tryPlaySilentAudio();
+        }
+        
         // 直接朗读完整文本，不再进行分段处理
         voiceService.speak(textWithoutEmoji, () => {
             // 朗读完成后的回调
@@ -838,5 +859,39 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 使用正则表达式移除常见的emoji表情符号
         return text.replace(/[\u{1F600}-\u{1F64F}|\u{1F300}-\u{1F5FF}|\u{1F680}-\u{1F6FF}|\u{1F700}-\u{1F77F}|\u{1F780}-\u{1F7FF}|\u{1F800}-\u{1F8FF}|\u{1F900}-\u{1F9FF}|\u{1FA00}-\u{1FA6F}|\u{1FA70}-\u{1FAFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]/gu, '');
+    }
+    
+    // iOS音频解锁函数
+    function unlockIOSAudio() {
+        // 为整个文档添加触摸事件监听器
+        document.addEventListener('touchstart', handleTouch, false);
+        
+        function handleTouch() {
+            // 尝试播放静音音频
+            tryPlaySilentAudio();
+            
+            // 只需要触发一次
+            document.removeEventListener('touchstart', handleTouch);
+        }
+    }
+    
+    // 尝试播放空白音频来解锁iOS的Web Audio
+    function tryPlaySilentAudio() {
+        if (audioUnlock) {
+            // 重置音频到开头
+            audioUnlock.currentTime = 0;
+            
+            // 设置音量为0
+            audioUnlock.volume = 0.1;
+            
+            // 播放音频
+            const playPromise = audioUnlock.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn('自动播放受限:', error);
+                });
+            }
+        }
     }
 });
