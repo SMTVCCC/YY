@@ -2,10 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta http-equiv="permissions-policy" content="microphone=(), camera=()">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI语音助手</title>
     <style>
         * {
@@ -445,63 +442,6 @@
             transform: translateX(-50%) translateY(0);
         }
         
-        /* 权限提示样式 */
-        .permission-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 2000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-        
-        .permission-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        
-        .permission-dialog {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 80%;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        
-        .permission-title {
-            margin-bottom: 10px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        
-        .permission-message {
-            margin-bottom: 15px;
-            line-height: 1.5;
-        }
-        
-        .permission-button {
-            background: linear-gradient(135deg, #f9c7db 0%, #d5c7ef 100%);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .permission-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
         /* 语法高亮颜色 */
         .token.comment { color: #6a9955; }
         .token.keyword { color: #569cd6; }
@@ -523,26 +463,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
-    <!-- 权限提示覆盖层 -->
-    <div class="permission-overlay" id="permissionOverlay">
-        <div class="permission-dialog">
-            <div class="permission-title">需要麦克风权限</div>
-            <div class="permission-message">
-                AI语音助手需要访问您的麦克风才能使用语音功能。<br>
-                请在浏览器弹出的权限请求中点击"允许"。
-            </div>
-            <button class="permission-button" id="permissionButton">我知道了</button>
-        </div>
-    </div>
-
-    <!-- iOS音频解锁 -->
-    <audio id="audio-unlock" preload="auto" style="display:none">
-        <source src="data:audio/mpeg;base64,/+MYxAAAAANIAAAAAExBTUUzLjk4LjIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" type="audio/mpeg">
-    </audio>
-    
-    <!-- 麦克风测试 -->
-    <audio id="mic-test" style="display:none"></audio>
-    
     <!-- 侧边栏 -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -582,48 +502,5 @@
     <script src="js/init-spark.js"></script>
     <script src="js/voice-service.js"></script>
     <script src="js/app.js"></script>
-    
-    <!-- 处理权限和自动播放的辅助脚本 -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // 处理权限提示对话框
-        const permissionOverlay = document.getElementById('permissionOverlay');
-        const permissionButton = document.getElementById('permissionButton');
-        
-        if (permissionButton) {
-            permissionButton.addEventListener('click', function() {
-                // 隐藏权限对话框
-                permissionOverlay.classList.remove('show');
-                
-                // 尝试请求麦克风权限
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    navigator.mediaDevices.getUserMedia({ audio: true })
-                        .then(function(stream) {
-                            // 成功获取权限，停止所有音轨
-                            stream.getTracks().forEach(track => track.stop());
-                            console.log('麦克风权限已获取');
-                        })
-                        .catch(function(err) {
-                            console.error('麦克风权限错误:', err);
-                            showPermissionDialog();
-                        });
-                }
-            });
-        }
-        
-        // 根据设备类型自动执行权限检查
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (isMobile) {
-            // 移动设备上不自动显示权限对话框，等待用户点击麦克风按钮时再请求
-        }
-        
-        // 显示权限对话框的函数
-        function showPermissionDialog() {
-            if (permissionOverlay) {
-                permissionOverlay.classList.add('show');
-            }
-        }
-    });
-    </script>
 </body>
 </html> 
